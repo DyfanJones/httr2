@@ -72,7 +72,7 @@ To create a client, you'll need to first register for a developer account on the
 In most cases this is easy, totally automated, and only takes a couple of minutes.
 That will give you access to some sort of developer portal which you can then use to register a new OAuth app (aka a client).
 This process varies from API to API (it's normal to spend some time hunting through the docs and settings), but at the end of it you'll get a client id (another random string of numbers and letters).
-Sometimes the client id is all you need, and you can create an httr2 client with `oauth_client()`, e.g.:
+Sometimes the client id is all you need, and you can create a httr2 client with `oauth_client()`, e.g.:
 
 ```{r}
 client <- oauth_client(
@@ -163,7 +163,7 @@ For example, you could get a token to access the GitHub API (using the client de
 
 ```{r, eval = FALSE}
 token <- oauth_flow_auth_code(
-  client = client, 
+  client = client,
   auth_url = "https://github.com/login/oauth/authorize"
 )
 ```
@@ -200,7 +200,7 @@ If we make a request to this endpoint without authentication, we'll get an error
 ```{r}
 #| error: true
 req <- request("https://api.github.com/user")
-req |> 
+req |>
   req_perform()
 ```
 
@@ -208,13 +208,13 @@ We can authenticate this request with `req_oauth_auth_code()`, using the same ar
 
 ```{r}
 #| eval: false
-req |> 
+req |>
   req_oauth_auth_code(
     client = github_client(),
     auth_url = "https://github.com/login/oauth/authorize"
-  ) |> 
-  req_perform() |> 
-  resp_body_json() |> 
+  ) |>
+  req_perform() |>
+  resp_body_json() |>
   str()
 ```
 

@@ -7,7 +7,7 @@
 req_dry_run(req, quiet = FALSE, redact_headers = TRUE)
 }
 \arguments{
-\item{req}{A \link{request}.}
+\item{req}{A httr2 \link{request} object.}
 
 \item{quiet}{If \code{TRUE} doesn't print anything.}
 
@@ -24,6 +24,13 @@ This shows you exactly what httr2 will send to the server, without
 actually sending anything. It requires the httpuv package because it
 works by sending the real HTTP request to a local webserver, thanks to
 the magic of \code{\link[curl:curl_echo]{curl::curl_echo()}}.
+}
+\details{
+\subsection{Limitations}{
+\itemize{
+\item The \code{Host} header is not respected.
+}
+}
 }
 \examples{
 # httr2 adds default User-Agent, Accept, and Accept-Encoding headers

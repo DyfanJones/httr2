@@ -1,48 +1,57 @@
-# happign
+# arcgisgeocode
 
 <details>
 
-* Version: 0.2.0
-* GitHub: https://github.com/paul-carteron/happign
-* Source code: https://github.com/cran/happign
-* Date/Publication: 2023-08-07 19:10:02 UTC
-* Number of recursive dependencies: 120
+* Version: 0.2.1
+* GitHub: https://github.com/r-arcgis/arcgisgeocode
+* Source code: https://github.com/cran/arcgisgeocode
+* Date/Publication: 2024-08-02 12:30:02 UTC
+* Number of recursive dependencies: 64
 
-Run `revdepcheck::cloud_details(, "happign")` for more info
+Run `revdepcheck::cloud_details(, "arcgisgeocode")` for more info
 
 </details>
 
 ## Newly broken
 
-*   checking tests ... ERROR
+*   checking examples ... ERROR
     ```
-      Running ‘testthat.R’
-    Running the tests in ‘tests/testthat.R’ failed.
-    Complete output:
-      > library(testthat)
-      > library(happign)
-      Please make sure you have an internet connection.
-      Use happign::get_last_news() to display latest geoservice news.
-      > 
-      > test_check("happign")
-      Linking to GEOS 3.8.0, GDAL 3.0.4, PROJ 6.3.1; sf_use_s2() is TRUE
+    Running examples in ‘arcgisgeocode-Ex.R’ failed
+    The error most likely occurred in:
+    
+    > ### Name: reverse_geocode
+    > ### Title: Reverse Geocode Locations
+    > ### Aliases: reverse_geocode
+    > 
+    > ### ** Examples
+    > 
+    > # Find addresses from locations
     ...
-        6. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
-        7. └─happign:::build_req(path, "test")
-        8.   └─httr2::req_url_query(...)
-        9.     └─httr2:::query_build(dots)
-       10.       └─cli::cli_abort("Query must be a named list.", call = error_call)
-       11.         └─rlang::abort(...)
-      
-      [ FAIL 1 | WARN 21 | SKIP 24 | PASS 64 ]
-      Error: Test failures
-      Execution halted
+        ▆
+     1. └─arcgisgeocode::reverse_geocode(c(-117.172, 34.052))
+     2.   └─httr2::resps_data(all_resps, httr2::resp_body_string)
+     3.     ├─vctrs::list_unchop(lapply(resps, resp_data))
+     4.     └─base::lapply(resps, resp_data)
+     5.       └─httr2 (local) FUN(resp = X[[i]])
+     6.         └─httr2:::check_response(resp)
+     7.           └─httr2:::stop_input_type(...)
+     8.             └─rlang::abort(message, ..., call = call, arg = arg)
+    Execution halted
     ```
 
 ## In both
 
-*   checking data for non-ASCII characters ... NOTE
+*   checking installed package size ... NOTE
     ```
-      Note: found 7592 marked UTF-8 strings
+      installed size is  6.8Mb
+      sub-directories of 1Mb or more:
+        libs   6.5Mb
+    ```
+
+*   checking R code for possible problems ... NOTE
+    ```
+    sort_asap: no visible global function definition for ‘sort_by’
+    Undefined global functions or variables:
+      sort_by
     ```
 

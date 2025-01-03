@@ -1,3 +1,10 @@
+test_that("has useful default (with message)", {
+  req <- request_test()
+  expect_snapshot(req <- req_retry(req))
+  expect_equal(retry_max_tries(req), 2)
+  expect_equal(retry_max_seconds(req), Inf)
+})
+
 test_that("can set define maximum retries", {
   req <- request_test()
   expect_equal(retry_max_tries(req), 1)
@@ -34,7 +41,7 @@ test_that("can override default backoff", {
   expect_equal(retry_backoff(req, 5), 26.9)
   expect_equal(retry_backoff(req, 10), 60)
 
-  req <- req_retry(req, backoff = ~ 10)
+  req <- req_retry(req, backoff = ~10)
   expect_equal(retry_backoff(req, 1), 10)
   expect_equal(retry_backoff(req, 5), 10)
   expect_equal(retry_backoff(req, 10), 10)
@@ -51,7 +58,7 @@ test_that("can override default retry wait", {
 
 test_that("missing retry-after uses backoff", {
   req <- request_test()
-  req <- req_retry(req, backoff = ~ 10)
+  req <- req_retry(req, backoff = ~10)
 
   expect_equal(retry_after(req, response(429), 1), 10)
 })
@@ -64,6 +71,16 @@ test_that("useful message if `after` wrong", {
     )
 
   expect_snapshot(req_perform(req), error = TRUE)
+})
+
+test_that("validates its inputs", {
+  req <- new_request("http://example.com")
+
+  expect_snapshot(error = TRUE, {
+    req_retry(req, max_tries = 0)
+    req_retry(req, max_tries = 2, max_seconds = "x")
+    req_retry(req, max_tries = 2, retry_on_failure = "x")
+  })
 })
 
 test_that("is_number_or_na implemented correctly", {

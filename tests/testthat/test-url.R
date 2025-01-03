@@ -1,22 +1,11 @@
 test_that("can parse special cases", {
-  url <- url_parse("//google.com")
-  expect_equal(url$scheme, NULL)
-  expect_equal(url$hostname, "google.com")
-
   url <- url_parse("file:///tmp")
   expect_equal(url$scheme, "file")
   expect_equal(url$path, "/tmp")
-
-  url <- url_parse("/")
-  expect_equal(url$scheme, NULL)
-  expect_equal(url$path, "/")
 })
 
 test_that("can round trip urls", {
   urls <- list(
-    "/",
-    "//google.com",
-    "file:///",
     "http://google.com/",
     "http://google.com/path",
     "http://google.com/path?a=1&b=2",
@@ -31,16 +20,17 @@ test_that("can round trip urls", {
   expect_equal(map(urls, ~ url_build(url_parse(.x))), urls)
 })
 
+test_that("can parse relative urls", {
+  base <- "http://example.com/a/b/c/"
+  expect_equal(url_parse("d", base)$path, "/a/b/c/d")
+  expect_equal(url_parse("..", base)$path, "/a/b/")
+
+  expect_equal(url_parse("//archive.org", base)$scheme, "http")
+})
+
 test_that("can print all url details", {
   expect_snapshot(
     url_parse("http://user:pass@example.com:80/path?a=1&b=2&c={1{2}3}#frag")
-  )
-})
-
-test_that("ensures path always starts with /", {
-  expect_equal(
-    url_modify("https://example.com/abc", path = "def"),
-    "https://example.com/def"
   )
 })
 
@@ -48,7 +38,59 @@ test_that("password also requires username", {
   url <- url_parse("http://username:pwd@example.com")
   url$username <- NULL
   expect_snapshot(url_build(url), error = TRUE)
+})
 
+test_that("url_build validates its input", {
+  expect_snapshot(url_build("abc"), error = TRUE)
+})
+
+# modify url -------------------------------------------------------------
+
+test_that("url_modify checks its inputs", {
+  url <- "http://example.com"
+
+  expect_snapshot(error = TRUE, {
+    url_modify(1)
+    url_modify(url, scheme = 1)
+    url_modify(url, hostname = 1)
+    url_modify(url, port = "x")
+    url_modify(url, username = 1)
+    url_modify(url, password = 1)
+    url_modify(url, path = 1)
+    url_modify(url, fragment = 1)
+  })
+})
+
+test_that("no arguments is idempotent", {
+  string <- "http://example.com/"
+  url <- url_parse(string)
+
+  expect_equal(url_modify(string), string)
+  expect_equal(url_modify(url), url)
+})
+
+test_that("can accept query as a string or list", {
+  url <- "http://test/"
+
+  expect_equal(url_modify(url, query = "a=1&b=2"), "http://test/?a=1&b=2")
+  expect_equal(url_modify(url, query = list(a = 1, b = 2)), "http://test/?a=1&b=2")
+
+  expect_equal(url_modify(url, query = ""), "http://test/")
+  expect_equal(url_modify(url, query = list()), "http://test/")
+})
+test_that("checks various query formats", {
+  url <- "http://example.com"
+
+  expect_snapshot(error = TRUE, {
+    url_modify(url, query = 1)
+    url_modify(url, query = list(1))
+    url_modify(url, query = list(x = 1:2))
+  })
+})
+
+test_that("path always starts with /", {
+  expect_equal(url_modify("https://x.com/abc", path = "def"), "https://x.com/def")
+  expect_equal(url_modify("https://x.com/abc", path = ""), "https://x.com/")
 })
 
 # query -------------------------------------------------------------------
@@ -78,27 +120,33 @@ test_that("validates inputs", {
 # format_query_param ------------------------------------------------------
 
 test_that("handles all atomic vectors", {
-  expect_equal(format_query_param(NA), "NA")
-  expect_equal(format_query_param(TRUE), "TRUE")
-  expect_equal(format_query_param(1L), "1")
-  expect_equal(format_query_param(1.3), "1.3")
-  expect_equal(format_query_param("x"), "x")
-  expect_equal(format_query_param(" "), "%20")
+  expect_equal(format_query_param(NA, "x"), "NA")
+  expect_equal(format_query_param(TRUE, "x"), "TRUE")
+  expect_equal(format_query_param(1L, "x"), "1")
+  expect_equal(format_query_param(1.3, "x"), "1.3")
+  expect_equal(format_query_param("x", "x"), "x")
+  expect_equal(format_query_param(" ", "x"), "%20")
 })
 
 test_that("doesn't add extra spaces", {
-  expect_equal(format_query_param(c(1, 1000)), c("1", "1000"))
-  expect_equal(format_query_param(c("a", "bcdef")), c("a", "bcdef"))
+  expect_equal(
+    format_query_param(c(1, 1000), "x", multi = TRUE),
+    c("1", "1000")
+  )
+  expect_equal(
+    format_query_param(c("a", "bcdef"), multi = TRUE, "x"),
+    c("a", "bcdef")
+  )
 })
 
 test_that("formats numbers nicely", {
-  expect_equal(format_query_param(1e9), "1000000000")
+  expect_equal(format_query_param(1e9, "x"), "1000000000")
 })
 
 test_that("can opt out of escaping", {
-  expect_equal(format_query_param(I(",")), ",")
+  expect_equal(format_query_param(I(","), "x"), ",")
 })
 
 test_that("can't opt out of escaping non strings", {
-  expect_snapshot(format_query_param(I(1)), error = TRUE)
+  expect_snapshot(format_query_param(I(1), "x"), error = TRUE)
 })

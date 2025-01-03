@@ -1,11 +1,24 @@
 test_that("nothing happens if cache not enabled", {
   req <- request("http://example.com")
-
-  expect_false(cache_exists(req))
   expect_equal(cache_pre_fetch(req), req)
 
   resp <- response()
   expect_equal(cache_post_fetch(req, resp), resp)
+})
+
+test_that("never retrieves POST request from cache", {
+  req <- request("http://example.com") %>%
+    req_method("POST") %>%
+    req_cache(tempfile())
+
+  # Fake an equivalent GET request in the cache
+  resp <- response(200,
+    headers = "Expires: Wed, 01 Jan 3000 00:00:00 GMT",
+    body = charToRaw("abc")
+  )
+  cache_set(req, resp)
+
+  expect_equal(cache_pre_fetch(req), req)
 })
 
 test_that("immutable objects retrieved directly from cache", {
@@ -56,15 +69,19 @@ test_that("304 retains headers but gets cached body", {
   cached <- cache_post_fetch(req, response(304, headers = "X: 2"))
   expect_equal(cached$headers$x, "2")
   expect_equal(cached$body, resp$body)
+
+  cached <- cache_post_fetch(req, response(304, headers = "X: 3"))
+  expect_equal(cached$headers$x, "3")
+  expect_equal(cached$body, resp$body)
 })
 
 test_that("automatically adds to cache", {
   req <- request("http://example.com") %>% req_cache(tempfile())
-  expect_false(cache_exists(req))
+  expect_true(is.null(cache_get(req)))
 
   resp <- response(200, headers = 'Etag: "abc"', body = charToRaw("OK"))
   cached <- cache_post_fetch(req, resp)
-  expect_true(cache_exists(req))
+  expect_false(is.null(cache_get(req)))
   expect_equal(cache_get(req), resp)
 })
 
@@ -116,23 +133,25 @@ test_that("can get and set from cache", {
     )
   )
 
-  expect_false(cache_exists(req))
+  expect_true(is.null(cache_get(req)))
   cache_set(req, resp)
-  expect_true(cache_exists(req))
-  expect_equal(cache_get(req), resp)
+  expect_false(is.null(cache_get(req)))
+
+  resp_from_cache <- cache_get(req)
+  expect_equal(resp_from_cache, resp)
 
   # Uses new headers if available, otherwise cached headers
-  out_headers <- cache_headers(req, cached_resp)
+  out_headers <- cache_headers(resp_from_cache, cached_resp)
   expect_equal(out_headers$`content-type`, "application/json")
   expect_equal(out_headers$Etag, "DEF")
   expect_equal(out_headers$other, "new")
 
   # If path is null can leave resp as is
-  expect_equal(cache_body(req, NULL), resp$body)
-  expect_equal(resp_body_json(cache_get(req)), list(a = 1L))
+  expect_equal(cache_body(resp_from_cache, NULL), resp$body)
+  expect_equal(resp_body_json(resp_from_cache), list(a = 1L))
   # If path is set, need to save to path
   path <- tempfile()
-  body <- cache_body(req, path)
+  body <- cache_body(resp_from_cache, path)
   expect_equal(body, new_path(path))
   expect_equal(readLines(path, warn = FALSE), rawToChar(resp$body))
 })
@@ -147,19 +166,31 @@ test_that("handles responses with files", {
   # File should be copied in cache directory, and response body updated
   body_path <- req_cache_path(req, ".body")
   expect_equal(readLines(body_path), "Hi there")
-  expect_equal(cache_get(req)$body, new_path(body_path))
+
+  resp_from_cache <- cache_get(req)
+  expect_equal(resp_from_cache$body, new_path(body_path))
 
   # If path is null, just leave body as is, since req_body() already
   # papers over the differences
-  expect_equal(cache_body(req, NULL), new_path(body_path))
+  expect_equal(cache_body(resp_from_cache, NULL), new_path(body_path))
 
   # If path is not null, copy to desired location, and update body
   path2 <- tempfile()
-  body <- cache_body(req, path2)
+  body <- cache_body(resp_from_cache, path2)
   expect_equal(readLines(body), "Hi there")
   expect_equal(body, new_path(path2))
 })
 
+test_that("corrupt files are ignored", {
+  cache_dir <- withr::local_tempdir()
+  req <- request("http://example.com") %>% req_cache(cache_dir)
+
+  writeLines(letters, req_cache_path(req))
+  expect_true(is.null(cache_get(req)))
+
+  saveRDS(1:10, req_cache_path(req))
+  expect_false(is.null(cache_get(req)))
+})
 
 # pruning -----------------------------------------------------------------
 

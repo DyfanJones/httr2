@@ -45,6 +45,8 @@ reference:
   contents:
   - req_perform
   - req_perform_stream
+  - req_perform_connection
+  - req_perform_promise
 
 - subtitle: Control the process
   desc: >
@@ -68,12 +70,15 @@ reference:
   contents:
   - starts_with("resp_")
 
+- title: URL manipulation
+  contents:
+  - starts_with("url_")
+
 - title: Miscellaenous helpers
   contents:
   - curl_translate
   - secrets
   - obfuscate
-  - url_parse
 
 - title: OAuth
   desc: >
@@ -94,4 +99,3 @@ news:
  releases:
  - text: "httr2 1.0.0"
    href: https://www.tidyverse.org/blog/2023/11/httr2-1-0-0/
-

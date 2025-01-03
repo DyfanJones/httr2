@@ -3,7 +3,7 @@
 #' @description
 #' The curl command line tool is commonly used to demonstrate HTTP APIs and can
 #' easily be generated from
-#' [browser developer tools](https://everything.curl.dev/usingcurl/copyas).
+#' [browser developer tools](https://everything.curl.dev/cmdline/copyas.html).
 #' `curl_translate()` saves you the pain of manually translating these calls
 #' by implementing a partial, but frequently used, subset of curl options.
 #' Use `curl_help()` to see the supported options, and `curl_translate()`
@@ -197,7 +197,7 @@ curl_data <- function(x, binary = FALSE, raw = FALSE) {
 }
 
 # Format described at <http://docopt.org>
-curl_opts <- "Usage: curl [<url>] [-H <header> ...] [options] [<url>]
+curl_opts <- "Usage: curl [<url>] [-H <header> ...] [-d <data> ...] [options] [<url>]
       --basic                  (IGNORED)
       --compressed             (IGNORED)
       --digest                 (IGNORED)
@@ -232,7 +232,7 @@ curl_args <- function(cmd, error_call = caller_env()) {
       call = error_call
     )
   }
-  if (grepl("'", cmd)) {
+  if (grepl("'", cmd, fixed = TRUE)) {
     args <- parse_delim(pieces$right, " ", quote = "'")
   } else {
     args <- parse_delim(pieces$right, " ", quote = '"')

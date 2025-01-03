@@ -1,17 +1,27 @@
-
 #' Perform a request and handle data as it streams back
 #'
+#' @description
 #' After preparing a request, call `req_perform_stream()` to perform the request
 #' and handle the result with a streaming callback. This is useful for
 #' streaming HTTP APIs where potentially the stream never ends.
+#'
+#' The `callback` will only be called if the result is successful. If you need
+#' to stream an error response, you can use [req_error()] to suppress error
+#' handling so that the body is streamed to you.
 #'
 #' @inheritParams req_perform
 #' @param callback A single argument callback function. It will be called
 #'   repeatedly with a raw vector whenever there is at least `buffer_kb`
 #'   worth of data to process. It must return `TRUE` to continue streaming.
-#' @param timeout_sec Number of seconds to processs stream for.
+#' @param timeout_sec Number of seconds to process stream for.
 #' @param buffer_kb Buffer size, in kilobytes.
-#' @returns An HTTP [response].
+#' @param round How should the raw vector sent to `callback` be rounded?
+#'   Choose `"byte"`, `"line"`, or supply your own function that takes a
+#'   raw vector of `bytes` and returns the locations of possible cut points
+#'   (or `integer()` if there are none).
+#' @returns An HTTP [response]. The body will be empty if the request was
+#'   successful (since the `callback` function will have handled it). The body
+#'   will contain the HTTP response body if the request was unsuccessful.
 #' @export
 #' @examples
 #' show_bytes <- function(x) {
@@ -21,35 +31,73 @@
 #' resp <- request(example_url()) |>
 #'   req_url_path("/stream-bytes/100000") |>
 #'   req_perform_stream(show_bytes, buffer_kb = 32)
-req_perform_stream <- function(req, callback, timeout_sec = Inf, buffer_kb = 64) {
+#' resp
+req_perform_stream <- function(req,
+                               callback,
+                               timeout_sec = Inf,
+                               buffer_kb = 64,
+                               round = c("byte", "line")) {
   check_request(req)
 
-  handle <- req_handle(req)
-  callback <- as_function(callback)
+  check_function(callback)
+  check_number_decimal(timeout_sec, min = 0)
+  check_number_decimal(buffer_kb, min = 0)
+  cut_points <- as_round_function(round)
 
-  stopifnot(is.numeric(timeout_sec), timeout_sec > 0)
   stop_time <- Sys.time() + timeout_sec
 
-  stream <- curl::curl(req$url, handle = handle)
-  open(stream, "rbf")
+  resp <- req_perform_connection(req)
+  stream <- resp$body
   withr::defer(close(stream))
 
   continue <- TRUE
-  while(continue && isIncomplete(stream) && Sys.time() < stop_time) {
-    buf <- readBin(stream, raw(), buffer_kb * 1024)
+  incomplete <- TRUE
+  buf <- raw()
+
+  while (continue && isIncomplete(stream) && Sys.time() < stop_time) {
+    buf <- c(buf, readBin(stream, raw(), buffer_kb * 1024))
+
     if (length(buf) > 0) {
-      continue <- isTRUE(callback(buf))
+      cut <- cut_points(buf)
+      n <- length(cut)
+      if (n) {
+        continue <- isTRUE(callback(utils::head(buf, n = cut[n])))
+        buf <- utils::tail(buf, n = -cut[n])
+      }
     }
   }
 
-  data <- curl::handle_data(handle)
-  new_response(
-    method = req_method_get(req),
-    url = data$url,
-    status_code = data$status_code,
-    headers = as_headers(data$headers),
-    body = NULL
-  )
+  # if there are leftover bytes and none of the callback()
+  # returned FALSE.
+  if (continue && length(buf)) {
+    callback(buf)
+  }
+
+  # We're done streaming so convert to bodiless response
+  resp$body <- raw()
+  the$last_response <- resp
+  resp
+}
+
+# Helpers ----------------------------------------------------------------------
+
+as_round_function <- function(round = c("byte", "line"),
+                              error_call = caller_env()) {
+  if (is.function(round)) {
+    check_function2(round, args = "bytes")
+    round
+  } else if (is.character(round)) {
+    round <- arg_match(round, error_call = error_call)
+    switch(round,
+      byte = function(bytes) length(bytes),
+      line = function(bytes) which(bytes == charToRaw("\n"))
+    )
+  } else {
+    cli::cli_abort(
+      '{.arg round} must be "byte", "line" or a function.',
+      call = error_call
+    )
+  }
 }
 
 #' @export

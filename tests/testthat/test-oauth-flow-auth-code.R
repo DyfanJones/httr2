@@ -75,12 +75,12 @@ test_that("old args are deprecated", {
   expect_snapshot(
     redirect <- normalize_redirect_uri("http://localhost", port = 1234)
   )
-  expect_equal(redirect$uri, "http://localhost:1234")
+  expect_equal(redirect$uri, "http://localhost:1234/")
 
   expect_snapshot(
     redirect <- normalize_redirect_uri("http://x.com", host_name = "y.com")
   )
-  expect_equal(redirect$uri, "http://y.com")
+  expect_equal(redirect$uri, "http://y.com/")
 
   expect_snapshot(
     redirect <- normalize_redirect_uri("http://x.com", host_ip = "y.com")
@@ -126,13 +126,11 @@ test_that("external auth code sources are detected correctly", {
 test_that("auth codes can be retrieved from an external source", {
   skip_on_cran()
 
-  app <- webfakes::new_app()
-  authorized <- FALSE
-
-  # Error on first, and then respond on second
-  app$get("/code", function(req, res) {
+  req <- local_app_request(function(req, res) {
+    # Error on first, and then respond on second
+    authorized <- res$app$locals$authorized %||% FALSE
     if (!authorized) {
-      authorized <<- TRUE
+      res$app$locals$authorized <- TRUE
       res$
         set_status(404L)$
         set_type("text/plain")$
@@ -143,8 +141,7 @@ test_that("auth codes can be retrieved from an external source", {
         send_json(text = '{"code":"abc123"}')
     }
   })
-  server <- webfakes::local_app_process(app)
 
-  withr::local_envvar("HTTR2_OAUTH_CODE_SOURCE_URL" = server$url("/code"))
+  withr::local_envvar("HTTR2_OAUTH_CODE_SOURCE_URL" = req$url)
   expect_equal(oauth_flow_auth_code_fetch("ignored"), "abc123")
 })

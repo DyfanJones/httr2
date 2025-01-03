@@ -147,6 +147,7 @@ pool_run <- function(pool, perfs, on_error = "continue") {
 # Wrap up all components of request -> response in a single object
 Performance <- R6Class("Performance", public = list(
   req = NULL,
+  req_prep = NULL,
   path = NULL,
 
   handle = NULL,
@@ -161,12 +162,13 @@ Performance <- R6Class("Performance", public = list(
     self$progress <- progress
     self$error_call <- error_call
 
-    req <- auth_oauth_sign(req)
-    req <- cache_pre_fetch(req)
+    req <- auth_sign(req)
+    req <- cache_pre_fetch(req, path)
     if (is_response(req)) {
       self$resp <- req
     } else {
-      self$handle <- req_handle(req)
+      self$req_prep <- req_prepare(req)
+      self$handle <- req_handle(self$req_prep)
       curl::handle_setopt(self$handle, url = req$url)
     }
   },
@@ -190,8 +192,17 @@ Performance <- R6Class("Performance", public = list(
 
   succeed = function(res) {
     self$progress$update()
+    req_completed(self$req_prep)
 
-    body <- if (is.null(self$path)) res$content else new_path(self$path)
+    if (is.null(self$path)) {
+      body <- res$content
+    } else {
+      # Only needed with curl::multi_run()
+      if (!file.exists(self$path)) {
+        file.create(self$path)
+      }
+      body <- new_path(self$path)
+    }
     resp <- new_response(
       method = req_method_get(self$req),
       url = res$url,
@@ -200,10 +211,9 @@ Performance <- R6Class("Performance", public = list(
       body = body,
       request = self$req
     )
-    resp <- cache_post_fetch(self$reqs, resp, path = self$paths)
-
+    resp <- cache_post_fetch(self$req, resp, path = self$path)
     self$resp <- tryCatch(
-      resp_check_status(resp, error_call = self$error_call),
+      handle_resp(self$req, resp, error_call = self$error_call),
       error = identity
     )
     if (is_error(self$resp)) {
@@ -213,6 +223,7 @@ Performance <- R6Class("Performance", public = list(
 
   fail = function(msg) {
     self$progress$update()
+    req_completed(self$req_prep)
 
     self$resp <- error_cnd(
       "httr2_failure",

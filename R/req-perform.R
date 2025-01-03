@@ -29,20 +29,20 @@
 #' progress bar off (and just show the total time to wait) by setting
 #' `options(httr2_progress = FALSE)`.
 #'
-#' @param req A [request].
-#' @param path Optionally, path to save body of request. This is useful for
-#'   large responses since it avoids storing the response in memory.
+#' @param req A httr2 [request] object.
+#' @param path Optionally, path to save body of the response. This is useful
+#'   for large responses since it avoids storing the response in memory.
 #' @param mock A mocking function. If supplied, this function is called
 #'   with the request. It should return either `NULL` (if it doesn't want to
 #'   handle the request) or a [response] (if it does). See [with_mock()]/
 #'   `local_mock()` for more details.
 #' @param verbosity How much information to print? This is a wrapper
-#'   around `req_verbose()` that uses an integer to control verbosity:
+#'   around [req_verbose()] that uses an integer to control verbosity:
 #'
-#'   * 0: no output
-#'   * 1: show headers
-#'   * 2: show headers and bodies
-#'   * 3: show headers, bodies, and curl status messages.
+#'   * `0`: no output
+#'   * `1`: show headers
+#'   * `2`: show headers and bodies
+#'   * `3`: show headers, bodies, and curl status messages.
 #'
 #'   Use [with_verbosity()] to control the verbosity of requests that
 #'   you can't affect directly.
@@ -87,14 +87,15 @@ req_perform <- function(
   }
 
   req <- req_verbosity(req, verbosity)
-  req <- auth_oauth_sign(req)
+  req <- auth_sign(req)
 
-  req <- cache_pre_fetch(req)
+  req <- cache_pre_fetch(req, path)
   if (is_response(req)) {
     return(req)
   }
 
-  handle <- req_handle(req)
+  req_prep <- req_prepare(req)
+  handle <- req_handle(req_prep)
   max_tries <- retry_max_tries(req)
   deadline <- Sys.time() + retry_max_seconds(req)
 
@@ -105,7 +106,7 @@ req_perform <- function(
   throttle_delay(req)
 
   delay <- 0
-  while(tries < max_tries && Sys.time() < deadline) {
+  while (tries < max_tries && Sys.time() < deadline) {
     sys_sleep(delay, "for retry backoff")
     n <- n + 1
 
@@ -122,18 +123,18 @@ req_perform <- function(
         )
       }
     )
+    req_completed(req_prep)
 
-    if (is_error(resp)) {
-      tries <- tries + 1
-      delay <- retry_backoff(req, tries)
-    } else if (!reauth && resp_is_invalid_oauth_token(req, resp)) {
-      reauth <- TRUE
-      req <- auth_oauth_sign(req, TRUE)
-      handle <- req_handle(req)
-      delay <- 0
-    } else if (retry_is_transient(req, resp)) {
+    if (retry_is_transient(req, resp)) {
       tries <- tries + 1
       delay <- retry_after(req, resp, tries)
+      signal(class = "httr2_retry", tries = tries, delay = delay)
+    } else if (!reauth && resp_is_invalid_oauth_token(req, resp)) {
+      reauth <- TRUE
+      req <- auth_sign(req, TRUE)
+      req_prep <- req_prepare(req)
+      handle <- req_handle(req_prep)
+      delay <- 0
     } else {
       # done
       break
@@ -228,6 +229,10 @@ last_request <- function() {
 #' works by sending the real HTTP request to a local webserver, thanks to
 #' the magic of [curl::curl_echo()].
 #'
+#' ## Limitations
+#'
+#' * The `Host` header is not respected.
+#'
 #' @inheritParams req_verbose
 #' @param quiet If `TRUE` doesn't print anything.
 #' @returns Invisibly, a list containing information about the request,
@@ -257,6 +262,7 @@ req_dry_run <- function(req, quiet = FALSE, redact_headers = TRUE) {
     req <- req_options(req, debugfunction = debug, verbose = TRUE)
   }
 
+  req <- req_prepare(req)
   handle <- req_handle(req)
   curl::handle_setopt(handle, url = req$url)
   resp <- curl::curl_echo(handle, progress = FALSE)
@@ -268,7 +274,9 @@ req_dry_run <- function(req, quiet = FALSE, redact_headers = TRUE) {
   ))
 }
 
-req_handle <- function(req) {
+# Must call req_prepare(), then req_handle(), then after the request has been
+# performed, req_completed()
+req_prepare <- function(req) {
   req <- req_method_apply(req)
   req <- req_body_apply(req)
 
@@ -276,6 +284,9 @@ req_handle <- function(req) {
     req <- req_user_agent(req)
   }
 
+  req
+}
+req_handle <- function(req) {
   handle <- curl::new_handle()
   curl::handle_setheaders(handle, .list = headers_flatten(req$headers))
   curl::handle_setopt(handle, .list = req$options)
@@ -284,6 +295,9 @@ req_handle <- function(req) {
   }
 
   handle
+}
+req_completed <- function(req) {
+  req_policy_call(req, "done", list(), NULL)
 }
 
 new_path <- function(x) structure(x, class = "httr2_path")

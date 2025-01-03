@@ -25,7 +25,7 @@ termination. Defaults to \code{TRUE}.
 the progress bar type. It must be given for the \code{custom} type.
 Format strings may contain R expressions to evaluate in braces.
 They support cli \link[cli:pluralization]{pluralization}, and
-\link[=inline-markup]{styling} and they can contain special
+\link[cli:inline-markup]{styling} and they can contain special
 \link[cli:progress-variables]{progress variables}.
 \item \code{format_done}: format string for successful termination. By default
 the same as \code{format}.
@@ -33,9 +33,6 @@ the same as \code{format}.
 By default the same as \code{format}.
 \item \code{name}: progress bar name. This is by default the empty string and it
 is displayed at the beginning of the progress bar.
-\item \code{show_after}: numeric scalar. Only show the progress bar after this
-number of seconds. It overrides the \code{cli.progress_show_after}
-global option.
 \item \code{type}: progress bar type. Currently supported types are:
 \itemize{
 \item \code{iterator}: the default, a for loop or a mapping function,

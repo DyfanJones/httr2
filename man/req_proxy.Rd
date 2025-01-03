@@ -14,14 +14,14 @@ req_proxy(
 )
 }
 \arguments{
-\item{req}{A \link{request}.}
+\item{req}{A httr2 \link{request} object.}
 
 \item{url, port}{Location of proxy.}
 
 \item{username, password}{Login details for proxy, if needed.}
 
 \item{auth}{Type of HTTP authentication to use. Should be one of the
-following: \code{basic}, digest, digest_ie, gssnegotiate, ntlm, any.}
+following: \code{basic}, \code{digest}, \code{digest_ie}, \code{gssnegotiate}, \code{ntlm}, \code{any}.}
 }
 \description{
 Use a proxy for a request

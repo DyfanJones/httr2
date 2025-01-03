@@ -43,11 +43,12 @@ modify_list <- function(.x, ..., error_call = caller_env()) {
 }
 
 
-sys_sleep <- function(seconds,
-                      task,
-                      fps = 10,
-                      progress = getOption("httr2_progress", TRUE)) {
+sys_sleep <- function(seconds, task, fps = 10, progress = NULL) {
   check_number_decimal(seconds)
+  check_string(task)
+  check_number_decimal(fps)
+  progress <- progress %||% getOption("httr2_progress", !is_testing())
+  check_bool(progress, allow_null = TRUE)
 
   if (seconds == 0) {
     return(invisible())
@@ -67,7 +68,7 @@ sys_sleep <- function(seconds,
     total = seconds * fps
   )
 
-  while({left <- start + seconds - cur_time(); left > 0}) {
+  while ({left <- start + seconds - cur_time(); left > 0}) {
     Sys.sleep(min(1 / fps, left))
     cli::cli_progress_update(set = (seconds - left) * fps)
   }
@@ -280,4 +281,46 @@ create_progress_bar <- function(total,
     update = function(...) cli::cli_progress_update(..., id = id),
     done = function() cli::cli_progress_done(id = id)
   )
+}
+
+imap <- function(.x, .f, ...) {
+  map2(.x, names(.x), .f, ...)
+}
+
+read_con <- function(con, buffer = 32 * 1024) {
+  bytes <- raw()
+  repeat {
+    new <- readBin(con, "raw", n = buffer)
+    if (length(new) == 0) break
+    bytes <- c(bytes, new)
+  }
+  if (length(bytes) == 0) {
+    NULL
+  } else {
+    bytes
+  }
+}
+
+
+# Slices the vector using the only sane semantics: start inclusive, end
+# exclusive.
+#
+# * Allows start == end, which means return no elements.
+# * Allows start == length(vector) + 1, which means return no elements.
+# * Allows zero-length vectors.
+#
+# Otherwise, slice() is quite strict about what it allows start/end to be: no
+# negatives, no reversed order.
+slice <- function(vector, start = 1, end = length(vector) + 1) {
+  stopifnot(start > 0)
+  stopifnot(start <= length(vector) + 1)
+  stopifnot(end > 0)
+  stopifnot(end <= length(vector) + 1)
+  stopifnot(end >= start)
+
+  if (start == end) {
+    vector[FALSE] # Return an empty vector of the same type
+  } else {
+    vector[start:(end - 1)]
+  }
 }

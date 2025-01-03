@@ -9,8 +9,9 @@
 #'   Usually easiest expressed as a fraction,
 #'   `number_of_requests / number_of_seconds`, e.g. 15 requests per minute
 #'   is `15 / 60`.
-#' @param realm An unique identifier that for throttle pool. If not supplied,
-#'   defaults to the hostname of the request.
+#' @param realm A string that uniquely identifies the throttle pool to use
+#'   (throttling limits always apply *per pool*). If not supplied, defaults
+#'   to the hostname of the request.
 #' @returns A modified HTTP [request].
 #' @seealso [req_retry()] for another way of handling rate-limited APIs.
 #' @export
@@ -36,7 +37,7 @@ req_throttle <- function(req, rate, realm = NULL) {
     if (is.null(last)) {
       wait <- 0
     } else {
-      wait <- delay - (unix_time() - last)
+      wait <- max(delay - (unix_time() - last), 0)
     }
 
     sys_sleep(wait, "for throttling delay")

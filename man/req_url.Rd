@@ -2,12 +2,15 @@
 % Please edit documentation in R/req-url.R
 \name{req_url}
 \alias{req_url}
+\alias{req_url_relative}
 \alias{req_url_query}
 \alias{req_url_path}
 \alias{req_url_path_append}
 \title{Modify request URL}
 \usage{
 req_url(req, url)
+
+req_url_relative(req, url)
 
 req_url_query(.req, ..., .multi = c("error", "comma", "pipe", "explode"))
 
@@ -16,7 +19,7 @@ req_url_path(req, ...)
 req_url_path_append(req, ...)
 }
 \arguments{
-\item{req, .req}{A \link{request}.}
+\item{req, .req}{A httr2 \link{request} object.}
 
 \item{url}{New URL; completely replaces existing.}
 
@@ -34,11 +37,12 @@ containing multiple values:
 \item \code{"error"}, the default, throws an error.
 \item \code{"comma"}, separates values with a \verb{,}, e.g. \verb{?x=1,2}.
 \item \code{"pipe"}, separates values with a \code{|}, e.g. \code{?x=1|2}.
-\item \code{"explode"}, turns each element into its own parameter, e.g. \code{?x=1&x=2}.
+\item \code{"explode"}, turns each element into its own parameter, e.g. \code{?x=1&x=2}
 }
 
-If none of these functions work, you can alternatively supply a function
-that takes a character vector and returns a string.}
+If none of these options work for your needs, you can instead supply a
+function that takes a character vector of argument values and returns a
+a single string.}
 }
 \value{
 A modified HTTP \link{request}.
@@ -64,6 +68,11 @@ req |>
 # Change complete url
 req |>
   req_url("http://google.com")
+
+# Use a relative url
+req <- request("http://example.com/a/b/c")
+req |> req_url_relative("..")
+req |> req_url_relative("/d/e/f")
 
 # Use .multi to control what happens with vector parameters:
 req |> req_url_query(id = 100:105, .multi = "comma")

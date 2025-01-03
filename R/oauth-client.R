@@ -122,7 +122,7 @@ print.httr2_oauth_client <- function(x, ...) {
 #' specify them through the `auth` argument to [oauth_client()]. The `req` and
 #' `client` parameters are automatically filled in; other parameters come from
 #' the `auth_params` argument.
-#' @param req A [request].
+#' @inheritParams req_perform
 #' @param client An [oauth_client].
 #' @return A modified HTTP [request].
 #' @export
@@ -240,4 +240,3 @@ oauth_client_get_token <- function(client,
   resp <- oauth_flow_fetch(req, "client$token_url", error_call = error_call)
   exec(oauth_token, !!!resp)
 }
-

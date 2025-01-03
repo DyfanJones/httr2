@@ -54,9 +54,41 @@ test_that("persistent HTTP errors only get single attempt", {
   expect_equal(cnd$n, 1)
 })
 
+test_that("don't retry curl errors by default", {
+  req <- request("") %>% req_retry(max_tries = 2)
+  expect_error(req_perform(req), class = "httr2_failure")
+
+  # But can opt-in to it
+  req <- request("") %>% req_retry(max_tries = 2, retry_on_failure = TRUE)
+  cnd <- catch_cnd(req_perform(req), "httr2_retry")
+  expect_equal(cnd$tries, 1)
+})
+
+test_that("can retry a transient error", {
+  req <- local_app_request(function(req, res) {
+    i <- res$app$locals$i %||% 1
+    if (i == 1) {
+      res$app$locals$i <- 2
+      res$
+        set_status(429)$
+        set_header("retry-after", 0)$
+        send_json(list(status = "waiting"))
+    } else {
+      res$send_json(list(status = "done"))
+    }
+  })
+  req <- req_retry(req, max_tries = 2)
+
+  cnd <- catch_cnd(resp <- req_perform(req), "httr2_retry")
+  expect_s3_class(cnd, "httr2_retry")
+  expect_equal(cnd$tries, 1)
+  expect_equal(cnd$delay, 0)
+})
+
+
 test_that("repeated transient errors still fail", {
   req <- request_test("/status/:status", status = 429) %>%
-    req_retry(max_tries = 3, backoff = ~ 0)
+    req_retry(max_tries = 3, backoff = ~0)
 
   cnd <- req_perform(req) %>%
     expect_error(class = "httr2_http_429") %>%
@@ -64,11 +96,76 @@ test_that("repeated transient errors still fail", {
   expect_equal(cnd$n, 3)
 })
 
+test_that("can download 0 byte file", {
+  path <- withr::local_tempfile()
+  resps <- req_perform(request_test("/bytes/0"), path = path)
+
+  expect_equal(file.size(path[[1]]), 0)
+})
+
 test_that("can cache requests with etags", {
   req <- request_test("/etag/:etag", etag = "abc") %>% req_cache(tempfile())
 
   resp1 <- req_perform(req)
-  expect_condition(resp2 <- req_perform(req), class = "httr2_cache_not_modified")
+  expect_condition(
+    expect_condition(resp2 <- req_perform(req), class = "httr2_cache_not_modified"),
+    class = "httr2_cache_save"
+  )
+})
+
+test_that("can cache requests with paths (cache-control)", {
+  req <- request(example_url()) %>%
+    req_url_path("/cache/2") %>%
+    req_cache(withr::local_tempfile())
+
+  path1 <- withr::local_tempfile()
+  expect_condition(
+    resp1 <- req %>% req_perform(path = path1),
+    class = "httr2_cache_save"
+  )
+  expect_equal(resp1$body[[1]], path1)
+
+  path2 <- withr::local_tempfile()
+  expect_condition(
+    resp2 <- req %>% req_perform(path = path2),
+    class = "httr2_cache_cached"
+  )
+  expect_equal(resp2$body[[1]], path2)
+
+  # Wait until cache expires
+  cached_resp <- cache_get(req)
+  info <- resp_cache_info(cached_resp)
+  Sys.sleep(max(as.double(info$expires - Sys.time()), 0))
+
+  path3 <- withr::local_tempfile()
+  expect_condition(
+    resp3 <- req %>% req_perform(path = path3),
+    class = "httr2_cache_save"
+  )
+  expect_equal(resp3$body[[1]], path3)
+})
+
+test_that("can cache requests with paths (if-modified-since)", {
+  req <- request(example_url()) %>%
+    req_url_path("/cache") %>%
+    req_cache(tempfile())
+
+  path1 <- tempfile()
+  expect_condition(
+    resp1 <- req %>% req_perform(path = path1),
+    class = "httr2_cache_save"
+  )
+  expect_equal(resp1$body[[1]], path1)
+
+  path2 <- tempfile()
+  expect_condition(
+    expect_condition(
+      resp2 <- req %>% req_perform(path = path2),
+      class = "httr2_cache_not_modified"
+    ),
+    class = "httr2_cache_save"
+  )
+  expect_equal(resp2$body[[1]], path2)
 })
 
 test_that("can retrieve last request and response", {
@@ -80,7 +177,7 @@ test_that("can retrieve last request and response", {
 })
 
 test_that("can last response is NULL if it fails", {
-  req <- request("frooble")
+  req <- request("")
   try(req_perform(req), silent = TRUE)
 
   expect_equal(last_request(), req)
@@ -128,4 +225,3 @@ test_that("authorization headers are redacted", {
       req_dry_run()
   })
 })
-

@@ -21,6 +21,24 @@ test_that("userful errors if response isn't parseable", {
   })
 })
 
+test_that("can inspect the original response if response isn't parseable", {
+  resp1 <- response(headers = list(`content-type` = "text/plain"))
+  resp2 <- response_json(body = list())
+
+  tryCatch(
+    oauth_flow_parse(resp1, "test"),
+    httr2_oauth_parse = function(cnd) {
+      expect_equal(cnd$resp, resp1)
+    }
+  )
+  tryCatch(
+    oauth_flow_parse(resp2, "test"),
+    httr2_oauth_parse = function(cnd) {
+      expect_equal(cnd$resp, resp2)
+    }
+  )
+})
+
 test_that("returns body if known good structure", {
   resp <- response_json(body = list(access_token = "10"))
   expect_equal(oauth_flow_parse(resp, "test"), list(access_token = "10"))
@@ -37,4 +55,3 @@ test_that("converts expires_in to numeric", {
   body <- oauth_flow_parse(resp, "test")
   expect_equal(body$expires_in, 20)
 })
-

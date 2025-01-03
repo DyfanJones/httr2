@@ -31,6 +31,11 @@
 #' req |>
 #'   req_url("http://google.com")
 #'
+#' # Use a relative url
+#' req <- request("http://example.com/a/b/c")
+#' req |> req_url_relative("..")
+#' req |> req_url_relative("/d/e/f")
+#'
 #' # Use .multi to control what happens with vector parameters:
 #' req |> req_url_query(id = 100:105, .multi = "comma")
 #' req |> req_url_query(id = 100:105, .multi = "explode")
@@ -49,16 +54,26 @@ req_url <- function(req, url) {
 
 #' @export
 #' @rdname req_url
+req_url_relative <- function(req, url) {
+  check_request(req)
+
+  new_url <- url_parse(url, base_url = req$url)
+  req_url(req, url_build(new_url))
+}
+
+#' @export
+#' @rdname req_url
 #' @param .multi Controls what happens when an element of `...` is a vector
 #'   containing multiple values:
 #'
 #'   * `"error"`, the default, throws an error.
 #'   * `"comma"`, separates values with a `,`, e.g. `?x=1,2`.
 #'   * `"pipe"`, separates values with a `|`, e.g. `?x=1|2`.
-#'   * `"explode"`, turns each element into its own parameter, e.g. `?x=1&x=2`.
+#'   * `"explode"`, turns each element into its own parameter, e.g. `?x=1&x=2`
 #'
-#'   If none of these functions work, you can alternatively supply a function
-#'   that takes a character vector and returns a string.
+#'   If none of these options work for your needs, you can instead supply a
+#'   function that takes a character vector of argument values and returns a
+#'   a single string.
 req_url_query <- function(.req,
                           ...,
                           .multi = c("error", "comma", "pipe", "explode")) {

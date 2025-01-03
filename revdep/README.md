@@ -2,7 +2,7 @@
 
 ## New problems (1)
 
-|package |version |error  |warning |note |
-|:-------|:-------|:------|:-------|:----|
-|[happign](problems.md#happign)|0.2.0   |__+1__ |        |1    |
+|package       |version |error  |warning |note |
+|:-------------|:-------|:------|:-------|:----|
+|[arcgisgeocode](problems.md#arcgisgeocode)|0.2.1   |__+1__ |        |2    |
 

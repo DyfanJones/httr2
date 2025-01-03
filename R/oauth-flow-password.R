@@ -5,7 +5,8 @@
 #' defined by `r rfc(6749, 4.3)`. It allows the user to supply their password
 #' once, exchanging it for an access token that can be cached locally.
 #'
-#' Learn more about the overall OAuth authentication flow in `vignette("oauth")`.
+#' Learn more about the overall OAuth authentication flow in
+#' <https://httr2.r-lib.org/articles/oauth.html>
 #'
 #' @export
 #' @family OAuth flows
@@ -33,7 +34,6 @@ req_oauth_password <- function(req,
                                cache_disk = FALSE,
                                cache_key = username) {
 
-  password <- check_password(password)
   params <- list(
     client = client,
     username = username,
@@ -56,12 +56,11 @@ oauth_flow_password <- function(client,
     interactive = is.null(password)
   )
   check_string(username)
-  password <- check_password(password)
 
   oauth_client_get_token(client,
     grant_type = "password",
     username = username,
-    password = password,
+    password = check_password(password),
     scope = scope,
     !!!token_params
   )

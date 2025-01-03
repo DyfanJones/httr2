@@ -5,26 +5,43 @@
 \alias{req_stream}
 \title{Perform a request and handle data as it streams back}
 \usage{
-req_perform_stream(req, callback, timeout_sec = Inf, buffer_kb = 64)
+req_perform_stream(
+  req,
+  callback,
+  timeout_sec = Inf,
+  buffer_kb = 64,
+  round = c("byte", "line")
+)
 }
 \arguments{
-\item{req}{A \link{request}.}
+\item{req}{A httr2 \link{request} object.}
 
 \item{callback}{A single argument callback function. It will be called
 repeatedly with a raw vector whenever there is at least \code{buffer_kb}
 worth of data to process. It must return \code{TRUE} to continue streaming.}
 
-\item{timeout_sec}{Number of seconds to processs stream for.}
+\item{timeout_sec}{Number of seconds to process stream for.}
 
 \item{buffer_kb}{Buffer size, in kilobytes.}
+
+\item{round}{How should the raw vector sent to \code{callback} be rounded?
+Choose \code{"byte"}, \code{"line"}, or supply your own function that takes a
+raw vector of \code{bytes} and returns the locations of possible cut points
+(or \code{integer()} if there are none).}
 }
 \value{
-An HTTP \link{response}.
+An HTTP \link{response}. The body will be empty if the request was
+successful (since the \code{callback} function will have handled it). The body
+will contain the HTTP response body if the request was unsuccessful.
 }
 \description{
 After preparing a request, call \code{req_perform_stream()} to perform the request
 and handle the result with a streaming callback. This is useful for
 streaming HTTP APIs where potentially the stream never ends.
+
+The \code{callback} will only be called if the result is successful. If you need
+to stream an error response, you can use \code{\link[=req_error]{req_error()}} to suppress error
+handling so that the body is streamed to you.
 }
 \examples{
 show_bytes <- function(x) {
@@ -34,4 +51,5 @@ show_bytes <- function(x) {
 resp <- request(example_url()) |>
   req_url_path("/stream-bytes/100000") |>
   req_perform_stream(show_bytes, buffer_kb = 32)
+resp
 }

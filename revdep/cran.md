@@ -1,6 +1,6 @@
 ## revdepcheck results
 
-We checked 57 reverse dependencies, comparing R CMD check results across CRAN and dev versions of this package.
+We checked 131 reverse dependencies, comparing R CMD check results across CRAN and dev versions of this package.
 
  * We saw 1 new problems
  * We failed to check 0 packages
@@ -10,6 +10,6 @@ Issues with CRAN packages are summarised below.
 ### New problems
 (This reports the first line of each new failure)
 
-* happign
-  checking tests ... ERROR
+* arcgisgeocode
+  checking examples ... ERROR
 

@@ -5,7 +5,7 @@
 
 <!-- badges: start -->
 
-[![R-CMD-check](https://github.com/r-lib/httr2/workflows/R-CMD-check/badge.svg)](https://github.com/r-lib/httr2/actions)
+[![R-CMD-check](https://github.com/r-lib/httr2/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/r-lib/httr2/actions/workflows/R-CMD-check.yaml)
 [![Codecov test
 coverage](https://codecov.io/gh/r-lib/httr2/branch/main/graph/badge.svg)](https://app.codecov.io/gh/r-lib/httr2?branch=main)
 <!-- badges: end -->
@@ -55,6 +55,12 @@ req |> req_body_json(list(x = 1, y = 2))
 #> POST https://r-project.org
 #> Body: json encoded data
 
+# Modify the path in the url
+req |> req_url_path(path = "path/to/my/file")
+#> <httr2_request>
+#> GET https://r-project.org/path/to/my/file
+#> Body: empty
+
 # Automatically retry if the request fails
 req |> req_retry(max_tries = 5)
 #> <httr2_request>
@@ -62,6 +68,7 @@ req |> req_retry(max_tries = 5)
 #> Body: empty
 #> Policies:
 #> • retry_max_tries: 5
+#> • retry_on_failure: FALSE
 
 # Change the HTTP method
 req |> req_method("PATCH")
@@ -76,9 +83,9 @@ And see exactly what httr2 will send to the server with `req_dry_run()`:
 req |> req_dry_run()
 #> GET / HTTP/1.1
 #> Host: r-project.org
-#> User-Agent: httr2/1.0.0.9000 r-curl/5.1.0 libcurl/8.4.0
+#> User-Agent: httr2/1.0.3.9000 r-curl/5.2.2 libcurl/8.6.0
 #> Accept: */*
-#> Accept-Encoding: deflate, gzip, br, zstd
+#> Accept-Encoding: deflate, gzip
 ```
 
 Use `req_perform()` to perform the request, retrieving a **response**:
@@ -90,7 +97,7 @@ resp
 #> GET https://www.r-project.org/
 #> Status: 200 OK
 #> Content-Type: text/html
-#> Body: In memory (6446 bytes)
+#> Body: In memory (6951 bytes)
 ```
 
 The `resp_` functions help you extract various useful components of the
@@ -147,6 +154,5 @@ httr2 wouldn’t be possible without
 [jose](https://github.com/r-lib/jose/), which are all maintained by
 [Jeroen Ooms](https://github.com/jeroen). A big thanks also go to [Jenny
 Bryan](https://jennybryan.org) and [Craig
-Citro](https://research.google/people/CraigCitro/) who have given me
-much useful feedback on both the design of the internals and the user
-facing API.
+Citro](https://www.craigcitro.org) who have given me much useful
+feedback on both the design of the internals and the user facing API.
